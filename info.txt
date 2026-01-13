@@ -1,0 +1,95 @@
+
+
+#######################################If you want maximum host control, you can go the nuclear route: IMP ##########################################
+
+docker run -it \
+  --net=host \
+  --privileged \
+  --name my_container \
+  ur_humble_image:latest \
+  bash
+
+
+
+''''''''''''''''''''''''''''''''''''''''''''''' launch simulation '''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+sros
+
+ros2 launch thws_simulation_gazebo thws_sim_moveit.launch.py
+
+
+
+'''''''''''''''''''''''''''''''''''''''''''''''''''Real robto''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+sros
+
+
+ ros2 launch ur_robot_driver ur_control.launch.py ur_type:=ur10e robot_ip:=192.168.1.2 launch_rviz:=false
+
+
+ ros2 launch thws_robot_launch thws_robot_moveit.launch.py
+
+ 
+cd /ur_ws_sim
+source install/hemi_motion_rs/share/hemi_motion_rs/local_setup.bash
+
+##############
+REAL ROBOT PLUS REALSENSE
+
+
+
+################
+source /opt/ros/humble/setup.bash
+
+source /root/ur_ws_sim/install/setup.bash
+source /root/ur_ws_sim/install/setup.bash
+ros2 launch ur_robot_driver ur_control.launch.py   ur_type:=ur10e   robot_ip:=192.168.1.2   use_fake_hardware:=false   launch_rviz:=false   use_scaled_trajectory_controller:=true   initial_joint_controller:=scaled_joint_trajectory_controller
+
+Second terminal;
+ros2 control switch_controllers   --activate scaled_joint_trajectory_controller     --strict   --start-asap
+ros2 launch my_ur10e_moveit_config custom_rs.launch.py
+
+
+
+#########
+Realsense Calibration
+###########
+python3 camera_calibration.py \
+  --run-id run_001 \
+  --camera-name realsense \
+  --nx 7 \
+  --ny 10 \
+  --square-size 0.024 \
+  --output CameraParams_realsense.npz
+  --show
+
+python3 camera_pose_estimation_PnP.py   --run-id run_001   --camera-name realsense   --calib CameraParams_realsense.npz
+
+
+python3 hand_eye_calibration.py   --base-dir /root/ur_ws_sim/data   --run-id run_001   --camera-name realsense   --method Tsai
+
+python3 make_calibration_report.py   --base-dir /root/ur_ws_sim/data   --run-id run_001   --camera-name realsense
+
+
+
+
+both multicalibration
+
+
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+sudo apt update
+sudo apt install -y libxcb-cursor0
+
+
+echo $DISPLAY
+''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+
+
+xhost +SI:localuser:root
+# (fallback if that fails)
+xhost +local:root
+
+
+colcon build --packages-skip zed_components --parallel-workers 1
+
